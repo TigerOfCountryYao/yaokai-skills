@@ -27,10 +27,10 @@ description: 使用用户明确授权的 Chrome 登录态采集京东商品数�
 
 每个用户请求开始时，创建一个 `YYYYMMDD-HHmmss-简短名称` 格式的采集任务 ID，例如 `20260808-143000-haier-washers`。同一请求内的所有链接使用相同 ID；每个新请求使用新 ID，不复用或覆盖已有任务。
 
-运行随附的跨平台 Python 脚本：
+使用系统的 Python 3 命令运行脚本：Windows 通常为 `python`，macOS/Linux 通常为 `python3`。
 
 ```text
-python "<skill-dir>/scripts/build_product_bundle.py" --input capture.json --collection-id "20260808-143000-haier-washers"
+<python3-command> "<skill-dir>/scripts/build_product_bundle.py" --input capture.json --collection-id "20260808-143000-haier-washers"
 ```
 
 使用 `--input -` 从标准输入读取 JSON。默认输出根目录为上述位置；只有用户明确要求其他位置时才传 `--output-root`。脚本拒绝覆盖既有 `jd_<root_sku>` 目录，除非明确传入 `--overwrite`。
@@ -48,4 +48,3 @@ python "<skill-dir>/scripts/build_product_bundle.py" --input capture.json --coll
 - Chrome 出现登录失效或 CAPTCHA 时停止，并请用户在 Chrome 中处理；不得绕过。
 - 选择器缺失时，将字段保存为不可用并写明原因；不得按相似商品猜测。
 - 详情图下载失败时，保留其 URL 并在图片清单中记录失败。
-

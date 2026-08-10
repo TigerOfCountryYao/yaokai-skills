@@ -26,10 +26,10 @@ description: 将用户已确认的京东商品资料包制作成带动态商品�
 
 所有视频必须保存在已确认资料包的 `~/Documents/JD商品采集/<采集任务ID>/videos/<视频任务ID>/` 下，不得写入当前工作区，也不得和其他采集任务混放。
 
-随附脚本均通过 Python 在 Windows、macOS 与 Linux 运行。生成项目文件前运行检查；它检查 Python、Node.js（22+）、FFmpeg、`npx hyperframes` 与所选 TTS 依赖，只报告密钥环境变量是否存在，绝不输出密钥值：
+随附脚本均通过 Python 在 Windows、macOS 与 Linux 运行。使用系统的 Python 3 命令：Windows 通常为 `python`，macOS/Linux 通常为 `python3`。生成项目文件前运行检查；它检查 Python、Node.js（22+）、FFmpeg、`npx hyperframes` 与所选 TTS 依赖，只报告密钥环境变量是否存在，绝不输出密钥值：
 
 ```text
-python "<skill-dir>/scripts/check_environment.py" --tts-mode edge-tts
+<python3-command> "<skill-dir>/scripts/check_environment.py" --tts-mode edge-tts
 ```
 
 MiniMax 或 Seedance 需要密钥时，将调用方刚取得的临时环境变量名传给 `--required-secret-env`。检查失败即停止，并说明缺少的环境，不绕过。
@@ -37,7 +37,7 @@ MiniMax 或 Seedance 需要密钥时，将调用方刚取得的临时环境变�
 每条视频使用新的任务 ID；创建源码前初始化，已有同名目录时脚本会拒绝覆盖：
 
 ```text
-python "<skill-dir>/scripts/create_video_job.py" --dossier-dir "~/Documents/JD商品采集/<采集任务ID>" --video-id "20260808-143000-roundup"
+<python3-command> "<skill-dir>/scripts/create_video_job.py" --dossier-dir "~/Documents/JD商品采集/<采集任务ID>" --video-id "20260808-143000-roundup"
 ```
 
 ## 制作动态商品页
@@ -59,8 +59,7 @@ python "<skill-dir>/scripts/create_video_job.py" --dossier-dir "~/Documents/JD�
 创建合成项目后运行：
 
 ```text
-python "<skill-dir>/scripts/render_hyperframes.py" --project-dir "<视频任务目录>/project" --output-path "<视频任务目录>/output/final.mp4"
+<python3-command> "<skill-dir>/scripts/render_hyperframes.py" --project-dir "<视频任务目录>/project" --output-path "<视频任务目录>/output/final.mp4"
 ```
 
 脚本会执行 HyperFrames 环境、语法、对比度、文本溢出检查和最终渲染。修复所有错误及对比度/布局警告后，才交付 `final.mp4`。上传发布不属于本 Skill。
-
