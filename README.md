@@ -32,6 +32,16 @@ npx skills add https://github.com/TigerOfCountryYao/yaokai-skills --skill jd-pro
 
 安装完成后，在下一轮 Codex 对话即可使用以下 Skill。若同名 Skill 已存在，安装器会停止，避免覆盖本地版本。
 
+## 卸载
+
+移除这两个全局 Skill（覆盖所有已安装的 Agent）：
+
+```bash
+npx skills remove jd-product-collector jd-product-video --global --agent '*' --yes
+```
+
+去掉 `--yes` 可在删除前进行交互确认。
+
 ## 包含的 Skill
 
 - [`jd-product-collector`](skills/jd-product-collector)：采集京东商品图片与逐 SKU 规格。
