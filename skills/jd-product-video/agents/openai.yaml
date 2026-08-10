@@ -1,0 +1,5 @@
+interface:
+  display_name: "京东商品视频制作"
+  short_description: "将确认后的京东商品资料包制作成带口播、字幕与动态商品卡的 MP4 视频。"
+  default_prompt: "使用 $jd-product-video 将已确认的京东商品资料包制作成 MP4 商品视频。"
+

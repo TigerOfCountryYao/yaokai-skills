@@ -1,0 +1,5 @@
+interface:
+  display_name: "������Ʒ�ɼ�"
+  short_description: "Collect JD product images and specifications."
+  default_prompt: "Use $jd-product-collector to collect product images and per-SKU specifications from these JD links."
+
