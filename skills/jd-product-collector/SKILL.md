@@ -1,6 +1,6 @@
 ---
 name: jd-product-collector
-description: 使用用户明确授权的 Chrome 登录态采集京东商品数据。用户提供京东短链接或商品链接，并要求提取产品图、详情长图、逐 SKU 规格或导出资料包时使用。逐个解析可选 SKU，不伪造不可售款式的数据，并使用内置脚本生成本地商品资料包。
+description: 使用用户明确授权的 Chrome 登录态采集京东商品数据。用户提供京东短链接或商品链接，并要求提取产品图、详情长图、逐 SKU 规格或导出资料包时使用。自动枚举可选 SKU，不伪造不可售款式的数据，并使用内置脚本生成本地商品资料包。
 ---
 
 # 京东商品采集
@@ -9,15 +9,23 @@ description: 使用用户明确授权的 Chrome 登录态采集京东商品数�
 
 ## 采集流程
 
-1. 使用用户已授权的 Chrome 浏览器。
-2. 在新的 Agent 标签页打开每个京东短链接，等待最终 URL 变为 `item.jd.com/<SKU>.html`；记录短链接与解析后 URL。
-3. 采集当前 SKU 可见的标题、当前价格、店铺、可售状态和主图。不要使用旧版 JD 选择器，如 `#name` 或 `#jd-price`。
-4. 从 `.specification-item-sku` 读取可选款式。
-   - 对每个可售款式：点击并等待商品 URL 变化或稳定，再重新采集 SKU、价格、主图和规格表。
-   - 不要强行点击不可售款式。保留展示名称与不可售状态。若缩略图 URL 包含 `/s<宽>x<高>_jfs/`，可将该片段替换为 `/jfs/` 得到高清图 URL，但必须标记为仅图片，不得推断 SKU 或规格。
-5. 对每个已解析 SKU，通过 DOM 行读取规格表，不得截取整页文本。参见 [capture-schema.md](references/capture-schema.md)。
-6. 仅从 `#detail-main` 中指向 `360buyimg.com/sku/` 的 CSS `url(...)` 提取详情长图。不得采集 `continuous-product-card` 或推荐图。
-7. 按参考 Schema 组装采集 JSON，再运行内置脚本下载图片并写入商品资料包。
+1. 使用用户已授权的 Chrome 浏览器，在新的 Agent 标签页打开每个京东短链接；等待最终 URL 变为 `item.jd.com/<SKU>.html`，并保留原短链接。
+2. 不要由 Agent 为每个 SKU 单独发起点击和采集命令。将随附的 `scripts/capture_jd_variants.mjs` 导入已授权浏览器的持久运行时，并只调用一次 `collectJdVariants(jdTab, { sourceUrl: originalShortUrl })`。它会在一次浏览器调用中：
+   - 枚举 `.specification-item-sku` 中的全部款式；
+   - 跳过不可售款式，只记录其标签与图片 URL；
+   - 依次切换每个可售款式、等待页面稳定，并重新读取 SKU、价格、主图、规格表和详情长图；
+   - 返回可直接写入 `build_product_bundle.py` 的采集 JSON。
+3. 浏览器运行时应以本 Skill 的绝对 `file://` 模块 URL 导入该脚本。例如：
+
+```js
+const { pathToFileURL } = await import("node:url");
+const { collectJdVariants, writeCaptureJson } = await import(pathToFileURL("<skill-dir>/scripts/capture_jd_variants.mjs").href);
+const capture = await collectJdVariants(jdTab, { sourceUrl: originalShortUrl });
+await writeCaptureJson("<临时采集JSON路径>", capture);
+```
+
+4. 仅在枚举器报告选择器缺失、页面状态异常或 CAPTCHA 时停止并向用户说明。不得退回为逐 SKU 的手工式 Agent 点击，也不得绕过 CAPTCHA。
+5. 采集规则和输出字段参见 [capture-schema.md](references/capture-schema.md)。在枚举器返回后，直接将它写出的 JSON 传给内置打包脚本下载图片并写入商品资料包；不要重新逐项读取页面。
 
 ## 平台无关的路径与脚本
 

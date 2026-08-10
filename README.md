@@ -46,5 +46,5 @@ npx skills remove jd-product-collector jd-product-video --global --agent '*' --y
 
 ## 包含的 Skill
 
-- [`jd-product-collector`](skills/jd-product-collector)：采集京东商品图片与逐 SKU 规格。
+- [`jd-product-collector`](skills/jd-product-collector)：自动枚举可售 SKU，采集京东商品图片与逐 SKU 规格。
 - [`jd-product-video`](skills/jd-product-video)：将已确认资料包制作成 MP4 商品视频。
