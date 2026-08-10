@@ -32,7 +32,7 @@ node -v
 npx skills add https://github.com/TigerOfCountryYao/yaokai-skills --skill jd-product-collector jd-product-video --full-depth --global
 ```
 
-安装完成后，在下一轮 Codex 对话即可使用以下 Skill。若同名 Skill 已存在，安装器会停止，避免覆盖本地版本。
+安装完成后，在兼容的 Agent 对话中即可使用以下 Skill。若同名 Skill 已存在，安装器会停止，避免覆盖本地版本。
 
 ## 卸载
 
