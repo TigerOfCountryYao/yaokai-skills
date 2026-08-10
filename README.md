@@ -4,21 +4,17 @@
 
 ## 一键安装
 
-在 Windows PowerShell 中运行以下一条命令，即可同时安装两个 Skill：
+在 macOS、Linux 或 Windows 的终端中运行以下命令，即可全局安装两个 Skill：
 
-```powershell
-python "$env:USERPROFILE\.codex\skills\.system\skill-installer\scripts\install-skill-from-github.py" --repo TigerOfCountryYao/yaokai-skills --path skills/jd-product-collector skills/jd-product-video
+```bash
+npx skills add https://github.com/TigerOfCountryYao/yaokai-skills --skill jd-product-collector jd-product-video --full-depth --global
 ```
 
 安装完成后，在下一轮对话即可使用 `$jd-product-collector` 和 `$jd-product-video`。若同名 Skill 已存在，安装器会停止，避免覆盖本地版本。
 
 ## 手动安装
 
-将本仓库 `skills` 下所需 Skill 文件夹复制到：
-
-`C:\Users\<你的用户名>\.codex\skills\`
-
-重新打开 Codex 后，可使用 `$jd-product-collector` 采集商品资料，使用 `$jd-product-video` 基于已确认资料包制作 MP4 视频。
+将本仓库 `skills` 下所需 Skill 文件夹复制到 Codex 的全局 Skills 目录后，重新打开 Codex。
 
 ## Skill
 
