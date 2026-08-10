@@ -57,3 +57,4 @@ python "C:\Users\yaokai\.codex\skills\jd-product-collector\scripts\build_product
 - Chrome 出现登录失效或 CAPTCHA 时停止，并请用户在 Chrome 中处理；不得绕过。
 - 选择器缺失时，将字段保存为不可用并写明原因；不得按相似商品猜测。
 - 详情图下载失败时，保留其 URL 并在图片清单中记录失败。
+

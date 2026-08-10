@@ -2,3 +2,4 @@ interface:
   display_name: "京东商品采集"
   short_description: "采集京东商品图片、详情长图与逐 SKU 规格资料。"
   default_prompt: "使用 $jd-product-collector 采集这些京东链接的高清产品图和逐 SKU 规格。"
+
