@@ -20,38 +20,24 @@ description: 将用户已确认的京东商品资料包制作成带动态商品�
 
 不要推断商品/SKU 范围、价格、规格、评分、促销信息或用户偏好。任一必要确认缺失时，不进入创作。
 
-## 环境检查
+## 平台无关的路径与环境检查
 
-在生成项目文件前运行内置检查。它检查 Node.js（22+）、FFmpeg、`npx hyperframes` 和所选 TTS 的依赖；只报告密钥环境变量是否存在，绝不输出密钥值。
+使用当前加载的本 Skill 文件夹作为 `<skill-dir>`；不要假定它在 `.codex` 或 `.agents`。一键安装通常位于 `~/.agents/skills/jd-product-video`。
 
-```powershell
-& "C:\Users\yaokai\.codex\skills\jd-product-video\scripts\check_environment.ps1" `
-  -TtsMode "EdgeTTS"
-```
+所有视频必须保存在已确认资料包的 `~/Documents/JD商品采集/<采集任务ID>/videos/<视频任务ID>/` 下，不得写入当前工作区，也不得和其他采集任务混放。
 
-MiniMax 或 Seedance 需要密钥时，将调用方刚取得的临时环境变量名传给 `-RequiredSecretEnv`。检查失败即停止，并说明缺少的环境，不绕过。
-
-## 文件存放规范
-
-所有视频必须保存在已确认资料包所属的采集任务目录，不得写入当前工作区，也不得和其他采集任务混放：
+随附脚本均通过 Python 在 Windows、macOS 与 Linux 运行。生成项目文件前运行检查；它检查 Python、Node.js（22+）、FFmpeg、`npx hyperframes` 与所选 TTS 依赖，只报告密钥环境变量是否存在，绝不输出密钥值：
 
 ```text
-C:\Users\yaokai\Documents\JD商品采集\<采集任务ID>\
-  jd_<SKU>\...
-  videos\<视频任务ID>\
-    assets\      # 仅本任务使用的素材副本或生成图
-    voice\       # 口播与字幕源文件
-    project\     # HTML/CSS/JS 与 DESIGN.md
-    output\final.mp4
-    job.json
+python "<skill-dir>/scripts/check_environment.py" --tts-mode edge-tts
 ```
 
-每条视频使用新的 `<视频任务ID>`；同一资料包可有多条视频。创建源码前先初始化，已有同名目录时脚本会拒绝覆盖：
+MiniMax 或 Seedance 需要密钥时，将调用方刚取得的临时环境变量名传给 `--required-secret-env`。检查失败即停止，并说明缺少的环境，不绕过。
 
-```powershell
-python "C:\Users\yaokai\.codex\skills\jd-product-video\scripts\create_video_job.py" `
-  --dossier-dir "C:\Users\yaokai\Documents\JD商品采集\<采集任务ID>" `
-  --video-id "20260808-143000-roundup"
+每条视频使用新的任务 ID；创建源码前初始化，已有同名目录时脚本会拒绝覆盖：
+
+```text
+python "<skill-dir>/scripts/create_video_job.py" --dossier-dir "~/Documents/JD商品采集/<采集任务ID>" --video-id "20260808-143000-roundup"
 ```
 
 ## 制作动态商品页
@@ -70,13 +56,11 @@ python "C:\Users\yaokai\.codex\skills\jd-product-video\scripts\create_video_job.
 
 ## 质检与渲染
 
-创建合成项目后运行内置渲染脚本：
+创建合成项目后运行：
 
-```powershell
-& "C:\Users\yaokai\.codex\skills\jd-product-video\scripts\render_hyperframes.ps1" `
-  -ProjectDir "...\videos\<视频任务ID>\project" `
-  -OutputPath "...\videos\<视频任务ID>\output\final.mp4"
+```text
+python "<skill-dir>/scripts/render_hyperframes.py" --project-dir "<视频任务目录>/project" --output-path "<视频任务目录>/output/final.mp4"
 ```
 
-脚本会执行环境检查、语法检查、对比度验证、文本溢出检查和最终渲染。修复所有错误及对比度/布局警告后，才交付 `final.mp4`。上传发布不属于本 Skill。
+脚本会执行 HyperFrames 环境、语法、对比度、文本溢出检查和最终渲染。修复所有错误及对比度/布局警告后，才交付 `final.mp4`。上传发布不属于本 Skill。
 

@@ -19,30 +19,21 @@ description: 使用用户明确授权的 Chrome 登录态采集京东商品数�
 6. 仅从 `#detail-main` 中指向 `360buyimg.com/sku/` 的 CSS `url(...)` 提取详情长图。不得采集 `continuous-product-card` 或推荐图。
 7. 按参考 Schema 组装采集 JSON，再运行内置脚本下载图片并写入商品资料包。
 
-## 固定保存位置
+## 平台无关的路径与脚本
 
-所有采集任务保存在 `C:\Users\yaokai\Documents\JD商品采集`，不得写入当前工作区或既有采集任务目录。
+使用当前加载的本 Skill 文件夹作为 `<skill-dir>`；不要假定它在 `.codex` 或 `.agents`。一键安装通常位于 `~/.agents/skills/jd-product-collector`。
 
-每个用户请求开始时，创建一个 `YYYYMMDD-HHmmss-简短名称` 格式的采集任务 ID，例如 `20260808-143000-haier-washers`。同一请求内的所有链接使用相同 ID：
+所有任务默认保存至 `~/Documents/JD商品采集`：Windows 为用户目录下的 `Documents\\JD商品采集`，macOS/Linux 为 `$HOME/Documents/JD商品采集`。不得写入当前工作区或既有采集任务目录。
+
+每个用户请求开始时，创建一个 `YYYYMMDD-HHmmss-简短名称` 格式的采集任务 ID，例如 `20260808-143000-haier-washers`。同一请求内的所有链接使用相同 ID；每个新请求使用新 ID，不复用或覆盖已有任务。
+
+运行随附的跨平台 Python 脚本：
 
 ```text
-C:\Users\yaokai\Documents\JD商品采集\
-  20260808-143000-haier-washers\
-    jd_100327335468\
-    jd_...\
+python "<skill-dir>/scripts/build_product_bundle.py" --input capture.json --collection-id "20260808-143000-haier-washers"
 ```
 
-每个新请求使用新的采集任务 ID。不要复用或覆盖已有任务，完成后向用户报告最终目录。
-
-## 写入资料包
-
-```powershell
-python "C:\Users\yaokai\.codex\skills\jd-product-collector\scripts\build_product_bundle.py" `
-  --input capture.json `
-  --collection-id "20260808-143000-haier-washers"
-```
-
-使用 `--input -` 从标准输入读取 JSON。默认输出根目录为上述固定位置；只有用户明确要求其他位置时才传 `--output-root`。脚本拒绝覆盖既有 `jd_<root_sku>` 目录，除非明确传入 `--overwrite`。
+使用 `--input -` 从标准输入读取 JSON。默认输出根目录为上述位置；只有用户明确要求其他位置时才传 `--output-root`。脚本拒绝覆盖既有 `jd_<root_sku>` 目录，除非明确传入 `--overwrite`。
 
 ## 质量检查
 

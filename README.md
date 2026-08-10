@@ -2,6 +2,8 @@
 
 面向 Codex 的京东商品采集与商品视频制作 Skills。
 
+支持 Windows、macOS 与 Linux。视频制作还需要 Python 3.10+、Node.js 22+ 与 FFmpeg；采集功能使用用户明确授权的 Chrome 登录态。
+
 ## 安装前准备：Node.js 22
 
 `npx skills` 依赖较新的 Node.js；推荐 Node.js 22。先确认当前版本：
