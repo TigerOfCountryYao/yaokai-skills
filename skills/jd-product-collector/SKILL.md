@@ -1,29 +1,29 @@
 ---
 name: jd-product-collector
-description: Collect product data from JD.com links using the user's explicitly authorized Chrome session. Use when a user provides JD short links or item links and asks for product images, detail long images, SKU-specific specifications, or an export folder. Resolve every selectable SKU separately, preserve unavailable variants without fabricating data, and produce a local product bundle with the included script.
+description: 使用用户明确授权的 Chrome 登录态采集京东商品数据。用户提供京东短链接或商品链接，并要求提取产品图、详情长图、逐 SKU 规格或导出资料包时使用。逐个解析可选 SKU，不伪造不可售款式的数据，并使用内置脚本生成本地商品资料包。
 ---
 
-# JD Product Collector
+# 京东商品采集
 
-Use Chrome only when the user has explicitly authorized their Chrome session. Do not read or export cookies, account data, orders, cart contents, precise delivery addresses, or unrelated recommendations. Do not add items to cart or buy anything.
+仅在用户明确授权时使用其 Chrome 登录态。不得读取或导出 Cookie、账户资料、订单、购物车、精确配送地址或无关推荐内容；不得加购或购买。
 
-## Workflow
+## 采集流程
 
-1. Load the Chrome-control skill and use the user's authorized Chrome browser.
-2. Open each supplied JD short link in a new agent tab. Wait for the final `item.jd.com/<SKU>.html` URL; record the short link and resolved URL.
-3. Collect the current SKU's visible title, current price, shop, availability, and current main image. Do not use legacy JD selectors such as `#name` or `#jd-price`.
-4. Read selectable variants from `.specification-item-sku`.
-   - For each available variant, click it, wait for the item URL to change or settle, then collect a fresh SKU, price, main image, and specification table.
-   - Do not force-click an unavailable variant. Keep its displayed label and unavailable status. If its thumbnail URL contains `/s<width>x<height>_jfs/`, derive a high-resolution image URL by replacing that segment with `/jfs/`; label the result as image-only, with no inferred SKU or specifications.
-5. Read the specification table for every resolved SKU using the DOM rows, never by slicing the whole page text. See [capture-schema.md](references/capture-schema.md).
-6. Extract detail long-image URLs only from CSS `url(...)` values in `#detail-main` that point to `360buyimg.com/sku/`. Do not collect `continuous-product-card` or recommendation images.
-7. Build a capture JSON object in the schema reference, then run the bundled script to download images and write the product folders.
+1. 使用用户已授权的 Chrome 浏览器。
+2. 在新的 Agent 标签页打开每个京东短链接，等待最终 URL 变为 `item.jd.com/<SKU>.html`；记录短链接与解析后 URL。
+3. 采集当前 SKU 可见的标题、当前价格、店铺、可售状态和主图。不要使用旧版 JD 选择器，如 `#name` 或 `#jd-price`。
+4. 从 `.specification-item-sku` 读取可选款式。
+   - 对每个可售款式：点击并等待商品 URL 变化或稳定，再重新采集 SKU、价格、主图和规格表。
+   - 不要强行点击不可售款式。保留展示名称与不可售状态。若缩略图 URL 包含 `/s<宽>x<高>_jfs/`，可将该片段替换为 `/jfs/` 得到高清图 URL，但必须标记为仅图片，不得推断 SKU 或规格。
+5. 对每个已解析 SKU，通过 DOM 行读取规格表，不得截取整页文本。参见 [capture-schema.md](references/capture-schema.md)。
+6. 仅从 `#detail-main` 中指向 `360buyimg.com/sku/` 的 CSS `url(...)` 提取详情长图。不得采集 `continuous-product-card` 或推荐图。
+7. 按参考 Schema 组装采集 JSON，再运行内置脚本下载图片并写入商品资料包。
 
-## Fixed save location
+## 固定保存位置
 
-Save every collection under `C:\Users\yaokai\Documents\JD商品采集`; never write its artifacts into the active workspace or a previous collection folder.
+所有采集任务保存在 `C:\Users\yaokai\Documents\JD商品采集`，不得写入当前工作区或既有采集任务目录。
 
-At the start of one user request, create one collection ID in the form `YYYYMMDD-HHMMSS-brief-label` (for example, `20260808-143000-haier-washers`). Pass the same ID for every supplied link in that request. The resulting layout is:
+每个用户请求开始时，创建一个 `YYYYMMDD-HHmmss-简短名称` 格式的采集任务 ID，例如 `20260808-143000-haier-washers`。同一请求内的所有链接使用相同 ID：
 
 ```text
 C:\Users\yaokai\Documents\JD商品采集\
@@ -32,11 +32,9 @@ C:\Users\yaokai\Documents\JD商品采集\
     jd_...\
 ```
 
-Use a new collection ID for every new user request. Do not reuse or overwrite an existing collection; report the final collection directory to the user.
+每个新请求使用新的采集任务 ID。不要复用或覆盖已有任务，完成后向用户报告最终目录。
 
-## Write the bundle
-
-Run:
+## 写入资料包
 
 ```powershell
 python "C:\Users\yaokai\.codex\skills\jd-product-collector\scripts\build_product_bundle.py" `
@@ -44,19 +42,18 @@ python "C:\Users\yaokai\.codex\skills\jd-product-collector\scripts\build_product
   --collection-id "20260808-143000-haier-washers"
 ```
 
-Use `--input -` to read the JSON from standard input. The default output root is the fixed location above; only use `--output-root` when the user explicitly asks for another location. The script refuses to overwrite an existing `jd_<root_sku>` directory unless `--overwrite` is passed explicitly.
+使用 `--input -` 从标准输入读取 JSON。默认输出根目录为上述固定位置；只有用户明确要求其他位置时才传 `--output-root`。脚本拒绝覆盖既有 `jd_<root_sku>` 目录，除非明确传入 `--overwrite`。
 
-## Required quality checks
+## 质量检查
 
-- `product-index.json` must list every resolved SKU and every unresolved unavailable variant.
-- Each resolved SKU must have its own `product.json` and its own `specifications.json`.
-- Never copy specifications from another SKU.
-- Validate that the specification values do not contain CSS, HTML, or `ssd-module` text.
-- Keep image manifests with source URL, resolved URL, local file, SHA-256, and byte size.
+- `product-index.json` 必须列出所有已解析 SKU 与所有不可售款式。
+- 每个已解析 SKU 必须有独立的 `product.json` 与 `specifications.json`。
+- 不得将一个 SKU 的规格复制给另一个 SKU。
+- 规格值不得包含 CSS、HTML 或 `ssd-module` 文本。
+- 图片清单必须保留源 URL、解析后 URL、本地文件、SHA-256 和字节数。
 
-## Failure handling
+## 异常处理
 
-- If Chrome is signed out or a CAPTCHA appears, stop and ask the user to handle it in Chrome. Do not bypass it.
-- If a selector is absent, save the field as unavailable with a reason; do not guess from a similar product.
-- If a detail image fails to download, keep its URL and record the failure in the manifest.
-
+- Chrome 出现登录失效或 CAPTCHA 时停止，并请用户在 Chrome 中处理；不得绕过。
+- 选择器缺失时，将字段保存为不可用并写明原因；不得按相似商品猜测。
+- 详情图下载失败时，保留其 URL 并在图片清单中记录失败。
