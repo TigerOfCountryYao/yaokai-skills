@@ -2,7 +2,17 @@
 
 个人 Codex Skills：京东商品采集与商品视频制作。
 
-## 安装
+## 一键安装
+
+在 Windows PowerShell 中运行以下一条命令，即可同时安装两个 Skill：
+
+```powershell
+python "$env:USERPROFILE\.codex\skills\.system\skill-installer\scripts\install-skill-from-github.py" --repo TigerOfCountryYao/yaokai-skills --path skills/jd-product-collector skills/jd-product-video
+```
+
+安装完成后，在下一轮对话即可使用 `$jd-product-collector` 和 `$jd-product-video`。若同名 Skill 已存在，安装器会停止，避免覆盖本地版本。
+
+## 手动安装
 
 将本仓库 `skills` 下所需 Skill 文件夹复制到：
 
