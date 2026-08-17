@@ -17,7 +17,15 @@ def command_path(name: str) -> str | None:
 
 
 def run(command: Sequence[str]) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(command, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=False)
+    return subprocess.run(
+        command,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        check=False,
+    )
 
 
 def main() -> int:
@@ -55,7 +63,7 @@ def main() -> int:
     if not npx:
         failures.append("Missing command: npx")
     else:
-        result = run((npx, "hyperframes", "doctor"))
+        result = run((npx, "--yes", "hyperframes@latest", "doctor"))
         if result.returncode:
             failures.append("HyperFrames environment check failed")
         else:
@@ -87,4 +95,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

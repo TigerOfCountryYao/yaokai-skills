@@ -1,159 +1,182 @@
 /**
- * Enumerate JD variants inside an already-authorized browser tab.
- *
- * Import this module from the agent's persistent browser runtime and call
- * collectJdVariants(tab, { sourceUrl }). It deliberately never reads cookies,
- * local storage, account data, or any non-product page.
+ * Enumerate JD series and variants in an already-authorized browser tab.
+ * Import this module from the Agent browser runtime. It never reads cookies,
+ * local storage, account data, or non-product pages.
  */
 
-const VARIANT_SELECTORS = [
-  ".specification-item-sku li",
-  ".specification-item-sku [role='button']",
-  ".specification-item-sku .item",
-];
+const SERIES_SELECTOR = ".specification-series-item";
+const VARIANT_SELECTOR = ".specification-item-sku";
+const SELECTED_SERIES_SELECTOR = ".specification-series-item--selected";
+const SELECTED_VARIANT_SELECTOR = ".specification-item-sku--selected";
 
-/** Execute entirely in the page scope; do not capture Node-side functions. */
-function readJdPage({ mode, selector, index }) {
+/** Classify a JD landing URL without accessing browser credentials. */
+export function classifyJDPage(rawURL) {
+  try {
+    const url = new URL(rawURL);
+    if (url.protocol === "https:" && url.hostname === "item.jd.com" && /^\/\d+\.html$/.test(url.pathname)) return "product";
+    if (url.protocol === "https:" && url.hostname === "item.m.jd.com" && (url.pathname === "/ware/view.action" || /^\/product\/[^/]+\.html$/.test(url.pathname))) return "mobile_product";
+    if (url.protocol === "https:" && url.hostname === "pro.m.jd.com" && url.pathname.startsWith("/mall/active/")) return "coupon";
+    if (url.protocol === "https:" && (url.hostname === "plogin.m.jd.com" || url.hostname === "passport.jd.com")) return "login";
+    if (url.protocol === "https:" && url.hostname === "pc-frequent-pro.pf.jd.com") return "rate_limited";
+  } catch {
+    // Keep waiting while the browser is changing URLs.
+  }
+  return "other";
+}
+
+/** Convert a JD mobile product URL to its equivalent desktop product URL. */
+export function desktopProductURLFromMobile(rawURL) {
+  try {
+    const url = new URL(rawURL);
+    if (url.protocol !== "https:" || url.hostname !== "item.m.jd.com") return null;
+    const sku = url.pathname === "/ware/view.action"
+      ? url.searchParams.get("wareId") || ""
+      : url.pathname.match(/^\/product\/(\d+)\.html$/)?.[1] || "";
+    return /^\d+$/.test(sku) ? `https://item.jd.com/${sku}.html` : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Execute in coupon page scope: click only when exactly one visible claim button exists. */
+export function clickJDClaimButton() {
+  const candidates = [...document.querySelectorAll("body *")].filter((element) => {
+    if (element.children.length !== 0 || element.textContent?.trim() !== "一键领取") return false;
+    const style = window.getComputedStyle(element);
+    return style.display !== "none" && style.visibility !== "hidden" && element.getClientRects().length > 0;
+  });
+  if (candidates.length === 0) return { status: "missing" };
+  if (candidates.length !== 1) return { status: "ambiguous" };
+  candidates[0].click();
+  return { status: "clicked" };
+}
+
+/** Execute in page scope; do not capture Node-side functions. */
+function inspectJdPage({ mode, index }) {
   const text = (element) => element?.textContent?.replace(/\s+/g, " ").trim() || "";
-  const absoluteUrl = (value) => {
+  const absolute = (value) => {
     if (!value) return null;
     if (value.startsWith("//")) return `https:${value}`;
-    try {
-      return new URL(value, location.href).href;
-    } catch {
-      return null;
-    }
+    try { return new URL(value, location.href).href; } catch { return null; }
   };
-  const uniqueUrls = (values) => [...new Set(values.map(absoluteUrl).filter(Boolean))];
-  const firstUrl = (element) => element?.currentSrc
-    || element?.getAttribute("src")
-    || element?.getAttribute("data-origin")
-    || element?.getAttribute("data-url")
-    || element?.getAttribute("data-lazy-img")
-    || null;
+  const image = (element) => element?.getAttribute("data-origin") || element?.getAttribute("data-url") || element?.getAttribute("data-lazy-img") || element?.currentSrc || element?.getAttribute("src") || null;
+  const highResolution = (url) => url?.replace(/\/s\d+x\d+_jfs\//, "/jfs/") || null;
+  const currentSKU = () => location.pathname.match(/\/(\d+)\.html/)?.[1] || "";
+  const uniqueURLs = (values) => [...new Set(values.map(absolute).filter(Boolean))];
 
-  if (mode === "variant") {
-    const element = [...document.querySelectorAll(selector)][index];
-    if (!element) return null;
-    const unavailable = element.classList.contains("lack")
-      || element.closest(".lack") !== null
-      || element.getAttribute("aria-disabled") === "true";
+  if (mode === "state") {
+    const selectedSeries = document.querySelector(SELECTED_SERIES_SELECTOR);
     return {
-      label: text(element),
-      unavailable,
-      thumbnail_url: firstUrl(element.querySelector("img")),
+      series_count: document.querySelectorAll(SERIES_SELECTOR).length,
+      variant_count: document.querySelectorAll(VARIANT_SELECTOR).length,
+      selected_series_label: text(selectedSeries) || "默认系列",
+      selected_series_index: [...document.querySelectorAll(SERIES_SELECTOR)].indexOf(selectedSeries),
     };
   }
 
-  const sku = location.pathname.match(/\/(\d+)\.html/)?.[1] || null;
-  if (!sku) return { error: "Current URL does not contain a JD SKU", resolved_url: location.href };
-
-  const summary = {};
-  for (const card of document.querySelectorAll(".page-content-left.preview-wrap #spec-n1 .item")) {
-    const label = text(card.querySelector(".desc"));
-    const value = text(card.querySelector(".value"));
-    if (label && value) summary[label] = value;
+  if (mode === "variant") {
+    const element = document.querySelectorAll(VARIANT_SELECTOR)[index];
+    if (!element) return null;
+    const unavailable = element.classList.contains("lack") || element.classList.contains("specification-item-sku--lack") || Boolean(element.closest(".lack,.specification-item-sku--lack")) || element.getAttribute("aria-disabled") === "true" || /无货/.test(element.getAttribute("title") || "");
+    const thumbnail = absolute(image(element.querySelector("img")));
+    return { label: text(element), unavailable, thumbnail_url: thumbnail, high_resolution_image_url: highResolution(thumbnail) };
   }
 
+  const sku = currentSKU();
+  if (!sku) return { error: "当前 URL 不含京东 SKU", resolved_url: location.href };
+  const summary = {};
+  for (const row of document.querySelectorAll(".page-content-left.preview-wrap #spec-n1 .item")) {
+    const name = text(row.querySelector(".desc"));
+    const value = text(row.querySelector(".value"));
+    if (name && value) summary[name] = value;
+  }
   const parameters = {};
   for (const row of document.querySelectorAll(".page-content-left.preview-wrap .list .item")) {
-    const label = text(row.querySelector(".label"));
+    const name = text(row.querySelector(".label"));
     const valueNode = row.querySelector(".value");
     const value = valueNode?.getAttribute("title")?.trim() || text(valueNode);
-    if (label && value) parameters[label] = value;
+    if (name && value) parameters[name] = value;
   }
-
-  const detailHtml = document.querySelector("#detail-main")?.innerHTML || "";
-  const detail = uniqueUrls([...detailHtml.matchAll(/url\(\s*['"]?([^)'"]+)['"]?\s*\)/g)]
-    .map((match) => match[1])
-    .filter((url) => url.includes("360buyimg.com/sku/")));
-  const main = uniqueUrls([...document.querySelectorAll(
-    ".page-content-left.preview-wrap img, #jdImage img, .preview-wrap img"
-  )].map(firstUrl));
-  const selectedVariantImage = document.querySelector(
-    ".specification-item-sku .selected img, .specification-item-sku .active img"
-  );
-
+  const detailHTML = document.querySelector("#detail-main")?.innerHTML || "";
+  const detail = uniqueURLs([...detailHTML.matchAll(/url\(\s*['"]?([^)'"\s]+)['"]?\s*\)/g)].map((match) => match[1]).filter((url) => url.includes("360buyimg.com/sku/")));
+  const variantMain = highResolution(absolute(image(document.querySelector(`${SELECTED_VARIANT_SELECTOR} img`))));
+  const selectedSeries = document.querySelector(SELECTED_SERIES_SELECTOR);
   return {
     sku,
     title: text(document.querySelector(".sku-title-name")),
     resolved_url: location.href,
     price: text(document.querySelector(".product-price--main")),
     availability: "available",
+    series_label: text(selectedSeries) || "默认系列",
+    series_ordinal: Math.max(0, [...document.querySelectorAll(SERIES_SELECTOR)].indexOf(selectedSeries)),
+    variant_label: text(document.querySelector(SELECTED_VARIANT_SELECTOR)),
     summary,
     parameters,
-    images: {
-      main,
-      variant_main: uniqueUrls([firstUrl(selectedVariantImage)]),
-      detail,
-    },
+    images: { main: [], variant_main: variantMain ? [variantMain] : [], detail },
   };
 }
 
-async function selectVariant(tab, selector, index, delayMs) {
-  await tab.playwright.locator(selector).nth(index).click({ timeoutMs: 10_000 });
-  await tab.playwright.waitForTimeout(delayMs);
+async function waitForSelection(tab, selector, index) {
+  for (let attempt = 0; attempt < 25; attempt += 1) {
+    await tab.playwright.waitForTimeout(200);
+    const selected = await tab.playwright.evaluate(({ selectedSelector, selectedIndex, baseSelector }) => {
+      const element = document.querySelector(selectedSelector);
+      return Boolean(element && [...document.querySelectorAll(baseSelector)].indexOf(element) === selectedIndex);
+    }, { selectedSelector: selector, selectedIndex: index, baseSelector: selector.replace("--selected", "") });
+    if (selected) return;
+  }
+  throw new Error("京东页面未能完成系列品或款式切换");
+}
+
+async function dismissSimilarProductDialog(tab) {
+  await tab.playwright.evaluate(() => {
+    for (const button of document.querySelectorAll("button,.btn,.dialog-button")) {
+      if (/取消|关闭/.test(button.textContent?.replace(/\s+/g, " ").trim() || "")) button.click();
+    }
+  });
 }
 
 /**
  * Return one build_product_bundle.py input object for the current JD product.
- * The function performs the complete variant loop in this one browser call.
+ * `captureAllSKUs` defaults to false: only capture the link's selected SKU.
  */
-export async function collectJdVariants(tab, { sourceUrl, delayMs = 900 } = {}) {
-  const originalUrl = sourceUrl || await tab.url();
-  let selector = null;
-
-  for (const candidate of VARIANT_SELECTORS) {
-    if (await tab.playwright.locator(candidate).count()) {
-      selector = candidate;
-      break;
-    }
-  }
+export async function collectJdVariants(tab, { sourceUrl, captureAllSKUs = false, delayMs = 500 } = {}) {
+  const sourceURL = sourceUrl || await tab.url();
+  const initialProduct = await tab.playwright.evaluate(inspectJdPage, { mode: "product" });
+  if (initialProduct.error || !initialProduct.sku) throw new Error(initialProduct.error || "当前 URL 不含京东 SKU");
+  if (!captureAllSKUs) return { source_url: sourceURL, root_sku: initialProduct.sku, products: [initialProduct], unresolved_variants: [] };
 
   const products = [];
   const unresolvedVariants = [];
-  const seenSkus = new Set();
-
-  if (selector) {
-    const count = await tab.playwright.locator(selector).count();
-    for (let index = 0; index < count; index += 1) {
-      const descriptor = await tab.playwright.evaluate(readJdPage, {
-        mode: "variant", selector, index,
-      });
-      if (!descriptor?.label && !descriptor?.thumbnail_url) continue;
-
-      if (descriptor.unavailable) {
-        unresolvedVariants.push({
-          label: descriptor.label,
-          availability: "unavailable",
-          thumbnail_url: descriptor.thumbnail_url,
-          high_resolution_image_url: descriptor.thumbnail_url?.replace(/\/s\\d+x\\d+_jfs\//, "/jfs/") || null,
-        });
-        continue;
-      }
-
-      await selectVariant(tab, selector, index, delayMs);
-      const product = await tab.playwright.evaluate(readJdPage, { mode: "product" });
-      if (product.error) throw new Error(product.error);
-      if (!seenSkus.has(product.sku)) {
-        products.push(product);
-        seenSkus.add(product.sku);
+  const initialState = await tab.playwright.evaluate(inspectJdPage, { mode: "state" });
+  const seriesCount = initialState.series_count || 1;
+  for (let seriesIndex = 0; seriesIndex < seriesCount; seriesIndex += 1) {
+    if (initialState.series_count) {
+      const currentState = await tab.playwright.evaluate(inspectJdPage, { mode: "state" });
+      if (currentState.selected_series_index !== seriesIndex) {
+        await tab.playwright.locator(SERIES_SELECTOR).nth(seriesIndex).click({ timeoutMs: 10_000 });
+        await waitForSelection(tab, SELECTED_SERIES_SELECTOR, seriesIndex);
       }
     }
+    const state = await tab.playwright.evaluate(inspectJdPage, { mode: "state" });
+    for (let variantIndex = 0; variantIndex < state.variant_count; variantIndex += 1) {
+      const descriptor = await tab.playwright.evaluate(inspectJdPage, { mode: "variant", index: variantIndex });
+      if (!descriptor?.label && !descriptor?.thumbnail_url) continue;
+      if (descriptor.unavailable) {
+        unresolvedVariants.push({ ...descriptor, availability: "unavailable", series_label: state.selected_series_label, series_ordinal: Math.max(0, state.selected_series_index) });
+        continue;
+      }
+      await tab.playwright.locator(VARIANT_SELECTOR).nth(variantIndex).click({ timeoutMs: 10_000 });
+      await waitForSelection(tab, SELECTED_VARIANT_SELECTOR, variantIndex);
+      await dismissSimilarProductDialog(tab);
+      await tab.playwright.waitForTimeout(delayMs);
+      const product = await tab.playwright.evaluate(inspectJdPage, { mode: "product" });
+      if (product.error) throw new Error(product.error);
+      products.push(product);
+    }
   }
-
-  if (!products.length) {
-    const product = await tab.playwright.evaluate(readJdPage, { mode: "product" });
-    if (product.error) throw new Error(product.error);
-    products.push(product);
-  }
-
-  return {
-    source_url: originalUrl,
-    root_sku: products[0].sku,
-    products,
-    unresolved_variants: unresolvedVariants,
-  };
+  if (!products.length) throw new Error("未采集到可售 SKU");
+  return { source_url: sourceURL, root_sku: initialProduct.sku, products, unresolved_variants: unresolvedVariants };
 }
 
 /** Write the browser result as UTF-8 JSON for build_product_bundle.py. */

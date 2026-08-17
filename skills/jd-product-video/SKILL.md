@@ -34,6 +34,16 @@ description: 将用户已确认的京东商品资料包制作成带动态商品�
 
 MiniMax 或 Seedance 需要密钥时，将调用方刚取得的临时环境变量名传给 `--required-secret-env`。检查失败即停止，并说明缺少的环境，不绕过。
 
+按当前系统安装缺失依赖后，再运行环境检查。HyperFrames 通过 `npx` 使用，无需全局安装：
+
+| 系统 | 安装 Node.js（22+）与 FFmpeg | 安装/验证 HyperFrames |
+| --- | --- | --- |
+| Windows（PowerShell） | `winget install OpenJS.NodeJS.LTS`<br>`winget install Gyan.FFmpeg` | `npx --yes hyperframes@latest doctor` |
+| macOS（Homebrew） | `brew install node@22 ffmpeg`<br>`brew link --overwrite node@22` | `npx --yes hyperframes@latest doctor` |
+| Debian/Ubuntu | `curl -fsSL https://deb.nodesource.com/setup_22.x \| sudo -E bash -`<br>`sudo apt-get install -y nodejs ffmpeg` | `npx --yes hyperframes@latest doctor` |
+
+安装后重新打开终端。选择 Edge TTS 时安装：`<python3-command> -m pip install edge-tts`。MiniMax 与 Seedance 只需要用户在当前会话提供 API Key，不安装本地 SDK。
+
 每条视频使用新的任务 ID；创建源码前初始化，已有同名目录时脚本会拒绝覆盖：
 
 ```text

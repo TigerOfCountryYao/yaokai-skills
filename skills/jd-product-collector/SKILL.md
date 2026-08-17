@@ -9,11 +9,14 @@ description: 使用用户明确授权的 Chrome 登录态采集京东商品数�
 
 ## 采集流程
 
-1. 使用用户已授权的 Chrome 浏览器，在新的 Agent 标签页打开每个京东短链接；等待最终 URL 变为 `item.jd.com/<SKU>.html`，并保留原短链接。
-2. 不要由 Agent 为每个 SKU 单独发起点击和采集命令。将随附的 `scripts/capture_jd_variants.mjs` 导入已授权浏览器的持久运行时，并只调用一次 `collectJdVariants(jdTab, { sourceUrl: originalShortUrl })`。它会在一次浏览器调用中：
-   - 枚举 `.specification-item-sku` 中的全部款式；
+1. 使用用户已授权的 Chrome 浏览器，在新的 Agent 标签页打开每个京东短链接；等待最终 URL 变为 `item.jd.com/<SKU>.html`，并保留原短链接。调用随附的 `classifyJDPage()` 判断落地页：
+   - `mobile_product`：使用 `desktopProductURLFromMobile()` 转为同一 SKU 的 `item.jd.com/<SKU>.html` 后继续；
+   - `coupon`：只在 `clickJDClaimButton()` 报告页面存在**唯一可见**“一键领取”按钮时点击一次；若没有或有多个按钮，停止并说明原因；
+   - `login`、`rate_limited`：停止，请用户在 Chrome 中完成登录或等待风控冷却；不得绕过。
+2. 不要由 Agent 为每个 SKU 单独发起点击和采集命令。将随附的 `scripts/capture_jd_variants.mjs` 导入已授权浏览器的持久运行时，并只调用一次 `collectJdVariants(jdTab, { sourceUrl: originalShortUrl, captureAllSKUs })`。它会：
+   - 枚举系列品 `.specification-series-item` 及其 `.specification-item-sku` 款式；
    - 跳过不可售款式，只记录其标签与图片 URL；
-   - 依次切换每个可售款式、等待页面稳定，并重新读取 SKU、价格、主图、规格表和详情长图；
+   - 在用户要求“全部 SKU”时，依次切换每个可售款式、等待页面稳定，并重新读取 SKU、价格、选中款主图、规格表和详情长图；默认仅采集链接落地后的默认款；
    - 返回可直接写入 `build_product_bundle.py` 的采集 JSON。
 3. 浏览器运行时应以本 Skill 的绝对 `file://` 模块 URL 导入该脚本。例如：
 
@@ -30,6 +33,28 @@ await writeCaptureJson("<临时采集JSON路径>", capture);
 ## 平台无关的路径与脚本
 
 使用当前加载的本 Skill 文件夹作为 `<skill-dir>`；不要假定它在 `.codex` 或 `.agents`。一键安装通常位于 `~/.agents/skills/jd-product-collector`。
+
+在首次采集前运行环境检查。它只检查本机 Python 与 Chrome/Chromium；“已授权浏览器控制能力”必须由调用 Agent 提供，脚本不会也不能检查、读取或导出登录 Cookie：
+
+```text
+<python3-command> "<skill-dir>/scripts/check_environment.py"
+```
+
+若同一工作流下一步要用 HyperFrames 渲染视频，则使用 `--with-video` 额外检查 Node.js、FFmpeg 和 HyperFrames：
+
+```text
+<python3-command> "<skill-dir>/scripts/check_environment.py" --with-video
+```
+
+安装缺失依赖时按当前系统执行下列命令，再重新运行检查。HyperFrames 不需要全局安装，统一用 `npx --yes hyperframes@latest` 运行。
+
+| 系统 | Node.js（22+）与 FFmpeg | 验证 HyperFrames |
+| --- | --- | --- |
+| Windows（PowerShell） | `winget install OpenJS.NodeJS.LTS`<br>`winget install Gyan.FFmpeg` | `npx --yes hyperframes@latest doctor` |
+| macOS（Homebrew） | `brew install node@22 ffmpeg`<br>`brew link --overwrite node@22` | `npx --yes hyperframes@latest doctor` |
+| Debian/Ubuntu | `curl -fsSL https://deb.nodesource.com/setup_22.x \| sudo -E bash -`<br>`sudo apt-get install -y nodejs ffmpeg` | `npx --yes hyperframes@latest doctor` |
+
+在 Windows 安装后重新打开终端；macOS/Linux 使用 `python3`，Windows 通常使用 `python`。Edge TTS 是视频阶段的可选依赖：`<python3-command> -m pip install edge-tts`。
 
 所有任务默认保存至 `~/Documents/JD商品采集`：Windows 为用户目录下的 `Documents\\JD商品采集`，macOS/Linux 为 `$HOME/Documents/JD商品采集`。不得写入当前工作区或既有采集任务目录。
 
